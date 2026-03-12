@@ -22,11 +22,23 @@ namespace
 	const int ROAD_COLOR = GetColor(255, 255, 255); // 通路の色（白）
 
 	int maze[MAZE_HEIGHT][MAZE_WIDTH];
+	int distMap[MAZE_HEIGHT][MAZE_WIDTH];
 }
 
 struct Point
 {
 	int x, y;
+};
+
+struct Node 
+{
+	int x, y;
+	int dist; // スタートからの距離
+
+	bool operator>(const Node& b) const 
+	{
+		return dist > b.dist;
+	}
 };
 
 void DxInit()
@@ -107,7 +119,57 @@ void setupMaze()
 	generateMaze(1, 1);
 }
 
+void Dijkstra(int startX, int startY)
+{
+	const int DIST_MAX = 1000000;
+	for (int y = 0; y < MAZE_HEIGHT; y++) {
+		for (int x = 0; x < MAZE_WIDTH; x++) {
+			distMap[y][x] = DIST_MAX;
+		}
+	}
 
+	// 距離が小さい順に取り出す設定のキュー
+	std::priority_queue<Node, std::vector<Node>, std::greater<Node>> que;
+
+	distMap[startY][startX] = 0;
+	que.push({ startX, startY, 0 });
+
+	while (!que.empty()) 
+	{
+		Node current = que.top(); // 一番近いノードを取得
+		que.pop();
+
+		// すでに最短距離が確定している（古い情報）ならスキップ
+		if (current.dist > distMap[current.y][current.x]) continue;
+
+		// 4方向を調べる
+		const int dx[] = { 0, 0, -1, 1 };
+		const int dy[] = { -1, 1, 0, 0 };
+
+		for (int i = 0; i < 4; i++) 
+		{
+			int nextX = current.x + dx[i];
+			int nextY = current.y + dy[i];
+
+			// 迷路の範囲内か、かつ道(ROAD)かチェック
+			if (nextX >= 0 && nextX < MAZE_WIDTH && nextY >= 0 && nextY < MAZE_HEIGHT) 
+			{
+				if (maze[nextY][nextX] == ROAD) 
+				{
+					// 新しい距離を計算（今の距離 + 1）
+					int newDist = distMap[current.y][current.x] + 1;
+
+					// もし今まで記録されていた距離より短ければ更新
+					if (newDist < distMap[nextY][nextX]) 
+					{
+						distMap[nextY][nextX] = newDist;
+						que.push({ nextX, nextY, newDist });
+					}
+				}
+			}
+		}
+	}
+}
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -124,6 +186,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		if (Input::IsKeyDown(DIK_SPACE))
 		{
 			setupMaze();
+		}
+		if (Input::IsKeyDown(DIK_Q))
+		{
+			Dijkstra(1, 1);
 		}
 		for (int y = 0; y < MAZE_HEIGHT; y++)
 		{
